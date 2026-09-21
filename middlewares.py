@@ -3,8 +3,8 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message, TelegramObject
 
-import config
 import keyboards as kb
+import settings
 from membership import get_missing_channels
 
 
@@ -17,7 +17,8 @@ class ForceJoinMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: Dict[str, Any],
     ) -> Any:
-        if not config.FORCE_JOIN_CHANNELS:
+        channels = await settings.get_list("FORCE_JOIN_CHANNELS")
+        if not channels:
             return await handler(event, data)
 
         user = data.get("event_from_user")
@@ -35,8 +36,8 @@ class ForceJoinMiddleware(BaseMiddleware):
 
         text = "⛔️ برای ادامه، ابتدا باید عضو کانال(های) زیر بشی:"
         if isinstance(event, Message):
-            await event.answer(text, reply_markup=kb.join_channels_kb())
+            await event.answer(text, reply_markup=await kb.join_channels_kb())
         elif isinstance(event, CallbackQuery):
             await event.answer("ابتدا باید عضو کانال‌ها بشی ❌", show_alert=True)
-            await event.message.answer(text, reply_markup=kb.join_channels_kb())
+            await event.message.answer(text, reply_markup=await kb.join_channels_kb())
         return None

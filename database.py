@@ -59,6 +59,11 @@ CREATE TABLE IF NOT EXISTS wallet_requests (
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
 """
 
 _conn: Optional[aiosqlite.Connection] = None
@@ -283,3 +288,26 @@ async def set_wallet_request_status(request_id: int, status: str) -> None:
         "UPDATE wallet_requests SET status = ? WHERE id = ?", (status, request_id)
     )
     await db().commit()
+
+
+# ---------------- key/value settings (everything configurable from the bot) ----------------
+
+async def get_setting_raw(key: str) -> Optional[str]:
+    cur = await db().execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = await cur.fetchone()
+    return row["value"] if row else None
+
+
+async def set_setting_raw(key: str, value: str) -> None:
+    await db().execute(
+        "INSERT INTO settings (key, value) VALUES (?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+    await db().commit()
+
+
+async def get_all_settings_raw() -> dict[str, str]:
+    cur = await db().execute("SELECT key, value FROM settings")
+    rows = await cur.fetchall()
+    return {r["key"]: r["value"] for r in rows}

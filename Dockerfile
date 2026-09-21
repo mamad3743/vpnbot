@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # SQLite DB is stored here — attach a Railway Volume to /app/data
-# so your users/orders/wallets survive redeploys.
+# so your settings/users/orders/wallets survive redeploys.
 RUN mkdir -p /app/data
 
-CMD ["python", "bot.py"]
+CMD ["python", "main.py"]
