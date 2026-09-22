@@ -2,9 +2,9 @@ from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
-import config
 import database as db
 import keyboards as kb
+import settings
 from states import WalletFlow
 
 router = Router(name="wallet")
@@ -12,9 +12,10 @@ router = Router(name="wallet")
 
 @router.message(F.text == kb.BTN_WALLET)
 async def wallet_menu(message: Message):
+    currency = await settings.get("CURRENCY", "تومان")
     balance = await db.get_wallet_balance(message.from_user.id)
     text = (
-        f"💳 موجودی کیف پول شما: {balance:,} {config.CURRENCY}\n\n"
+        f"💳 موجودی کیف پول شما: {balance:,} {currency}\n\n"
         "برای شارژ، یکی از مبلغ‌های زیر رو انتخاب کن:"
     )
     await message.answer(text, reply_markup=kb.wallet_charge_kb())
@@ -25,10 +26,15 @@ async def choose_charge_amount(callback: CallbackQuery, state: FSMContext):
     amount = int(callback.data.split(":")[1])
     await state.update_data(amount=amount)
     await state.set_state(WalletFlow.waiting_receipt)
+
+    currency = await settings.get("CURRENCY", "تومان")
+    card_number = await settings.get("CARD_NUMBER", "تنظیم نشده")
+    card_holder = await settings.get("CARD_HOLDER", "-")
+
     await callback.message.answer(
-        f"💳 مبلغ {amount:,} {config.CURRENCY} رو به شماره کارت زیر واریز کن:\n\n"
-        f"<code>{config.CARD_NUMBER}</code>\n"
-        f"به نام: {config.CARD_HOLDER}\n\n"
+        f"💳 مبلغ {amount:,} {currency} رو به شماره کارت زیر واریز کن:\n\n"
+        f"<code>{card_number}</code>\n"
+        f"به نام: {card_holder}\n\n"
         "بعد از واریز، عکس رسید یا کد پیگیری تراکنش رو همینجا بفرست."
     )
     await callback.answer()
@@ -38,6 +44,7 @@ async def choose_charge_amount(callback: CallbackQuery, state: FSMContext):
 async def receive_receipt(message: Message, state: FSMContext, bot: Bot):
     data = await state.get_data()
     amount = data.get("amount", 0)
+    currency = await settings.get("CURRENCY", "تومان")
 
     request_id = await db.create_wallet_request(
         user_id=message.from_user.id,
@@ -48,12 +55,13 @@ async def receive_receipt(message: Message, state: FSMContext, bot: Bot):
 
     await message.answer("✅ درخواست شارژ کیف پول شما برای ادمین ارسال شد. منتظر تایید بمون 🙏")
 
-    for admin_id in config.ADMIN_IDS:
+    admin_ids = await settings.get_admin_ids()
+    for admin_id in admin_ids:
         try:
             caption = (
                 f"🔔 درخواست شارژ کیف پول جدید #{request_id}\n"
                 f"👤 کاربر: {message.from_user.id} (@{message.from_user.username or '-'})\n"
-                f"💰 مبلغ: {amount:,} {config.CURRENCY}"
+                f"💰 مبلغ: {amount:,} {currency}"
             )
             if message.photo:
                 await bot.send_photo(
@@ -73,7 +81,7 @@ async def receive_receipt(message: Message, state: FSMContext, bot: Bot):
 
 @router.callback_query(F.data.startswith("wallet_ok:"))
 async def approve_wallet(callback: CallbackQuery, bot: Bot):
-    if callback.from_user.id not in config.ADMIN_IDS:
+    if not await settings.is_admin(callback.from_user.id):
         await callback.answer("⛔️ فقط ادمین", show_alert=True)
         return
 
@@ -83,6 +91,7 @@ async def approve_wallet(callback: CallbackQuery, bot: Bot):
         await callback.answer("این درخواست قبلا پردازش شده", show_alert=True)
         return
 
+    currency = await settings.get("CURRENCY", "تومان")
     await db.add_to_wallet(req["user_id"], req["amount"])
     await db.set_wallet_request_status(request_id, "approved")
 
@@ -96,14 +105,14 @@ async def approve_wallet(callback: CallbackQuery, bot: Bot):
 
     await bot.send_message(
         req["user_id"],
-        f"✅ کیف پول شما به مبلغ {req['amount']:,} {config.CURRENCY} شارژ شد.",
+        f"✅ کیف پول شما به مبلغ {req['amount']:,} {currency} شارژ شد.",
     )
     await callback.answer("تایید شد")
 
 
 @router.callback_query(F.data.startswith("wallet_no:"))
 async def reject_wallet(callback: CallbackQuery, bot: Bot):
-    if callback.from_user.id not in config.ADMIN_IDS:
+    if not await settings.is_admin(callback.from_user.id):
         await callback.answer("⛔️ فقط ادمین", show_alert=True)
         return
 

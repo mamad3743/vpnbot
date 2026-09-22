@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>فروشگاه VPN</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root{
+    --accent: #2f80ed;
+    --bg: #0f1115;
+    --card: #171a21;
+    --card-2: #1d212b;
+    --text: #eef0f4;
+    --muted: #9aa0ac;
+    --border: #262b36;
+    --radius: 18px;
+  }
+  html[data-theme="light"]{
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --card-2: #f0f3fa;
+    --text: #14161b;
+    --muted: #6b7280;
+    --border: #e6e9f0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Vazirmatn,Tahoma,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding-bottom:90px;
+    transition:background .25s ease,color .25s ease;
+  }
+  .hero{
+    padding:22px 18px 26px;
+    background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #6a3df5));
+    color:#fff;
+    border-radius:0 0 28px 28px;
+    box-shadow:0 10px 30px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .hero-top{display:flex;align-items:center;justify-content:space-between}
+  .shop-name{font-size:1.15rem;font-weight:800;margin:0}
+  .subtitle{font-size:.8rem;opacity:.85;margin-top:4px}
+  .balance-chip{
+    background:rgba(255,255,255,.18);
+    backdrop-filter:blur(6px);
+    border-radius:14px;
+    padding:10px 14px;
+    margin-top:16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .balance-chip b{font-size:1.15rem}
+  .theme-toggle{
+    border:0;background:rgba(255,255,255,.2);color:#fff;
+    width:34px;height:34px;border-radius:50%;font-size:1rem;
+  }
+  .section-title{
+    font-size:1rem;font-weight:800;margin:22px 18px 10px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .quick-actions{display:flex;gap:10px;padding:0 18px}
+  .quick-btn{
+    flex:1;background:var(--card);border:1px solid var(--border);
+    border-radius:16px;padding:14px 10px;text-align:center;font-size:.82rem;
+    color:var(--text);font-weight:600;
+  }
+  .quick-btn span{display:block;font-size:1.4rem;margin-bottom:4px}
+  .plans{padding:0 18px;display:flex;flex-direction:column;gap:12px}
+  .plan-card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    opacity:0;
+    transform:translateY(10px);
+    animation:rise .35s ease forwards;
+  }
+  .plan-card + .plan-card{animation-delay:.05s}
+  @keyframes rise{to{opacity:1;transform:translateY(0)}}
+  .plan-info b{font-size:1rem}
+  .plan-meta{display:flex;gap:8px;margin-top:6px}
+  .badge{
+    font-size:.72rem;background:var(--card-2);color:var(--muted);
+    padding:3px 9px;border-radius:20px;border:1px solid var(--border);
+  }
+  .plan-price{font-size:.78rem;color:var(--muted);margin-top:8px}
+  .buy-btn{
+    background:var(--accent);color:#fff;border:0;border-radius:12px;
+    padding:10px 16px;font-weight:700;font-size:.85rem;white-space:nowrap;
+  }
+  .empty{
+    text-align:center;color:var(--muted);padding:40px 20px;font-size:.9rem;
+  }
+  .skeleton{
+    height:82px;border-radius:var(--radius);
+    background:linear-gradient(90deg,var(--card) 25%,var(--card-2) 37%,var(--card) 63%);
+    background-size:400% 100%;
+    animation:shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+  .toast{
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    background:var(--card);border:1px solid var(--border);color:var(--text);
+    padding:10px 18px;border-radius:30px;font-size:.85rem;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);
+    opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-top">
+    <div>
+      <p class="shop-name" id="shopName">فروشگاه VPN</p>
+      <p class="subtitle">سرویس‌های پرسرعت با تحویل آنی</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle">🌓</button>
+  </div>
+  <div class="balance-chip">
+    <span>💳 موجودی کیف پول</span>
+    <b id="balanceValue">—</b>
+  </div>
+</div>
+
+<div class="quick-actions">
+  <button class="quick-btn" id="trialBtn"><span>🎁</span>اکانت تست رایگان</button>
+  <button class="quick-btn" id="refreshBtn"><span>🔄</span>بروزرسانی</button>
+</div>
+
+<p class="section-title">🛒 پلن‌های موجود</p>
+<div class="plans" id="plansList">
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const tg = window.Telegram?.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+function applyTelegramTheme(){
+  if (!tg) return;
+  const root = document.documentElement;
+  const scheme = tg.colorScheme || "dark";
+  root.setAttribute("data-theme", scheme);
+  const tp = tg.themeParams || {};
+  if (tp.bg_color) root.style.setProperty("--bg", tp.bg_color);
+  if (tp.secondary_bg_color) root.style.setProperty("--card", tp.secondary_bg_color);
+  if (tp.text_color) root.style.setProperty("--text", tp.text_color);
+  if (tp.hint_color) root.style.setProperty("--muted", tp.hint_color);
+}
+applyTelegramTheme();
+if (tg) tg.onEvent("themeChanged", applyTelegramTheme);
+
+document.getElementById("themeToggle").addEventListener("click", () => {
+  const root = document.documentElement;
+  const now = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+  root.setAttribute("data-theme", now);
+});
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+async function loadConfig(){
+  try{
+    const res = await fetch("/api/config");
+    const cfg = await res.json();
+    document.documentElement.style.setProperty("--accent", cfg.accent || "#2f80ed");
+    document.getElementById("shopName").textContent = cfg.shop_name || "فروشگاه VPN";
+    window.__currency = cfg.currency || "تومان";
+    window.__trialDays = cfg.trial_days;
+    window.__trialGb = cfg.trial_gb;
+  }catch(e){}
+}
+
+async function loadMe(){
+  if (!tg || !tg.initData) return;
+  try{
+    const res = await fetch("/api/me?initData=" + encodeURIComponent(tg.initData));
+    const me = await res.json();
+    if (me.valid){
+      document.getElementById("balanceValue").textContent =
+        me.balance.toLocaleString("fa-IR") + " " + (window.__currency || "تومان");
+      window.__usedTrial = me.used_trial;
+    }
+  }catch(e){}
+}
+
+async function loadPlans(){
+  const list = document.getElementById("plansList");
+  try{
+    const res = await fetch("/api/plans");
+    const plans = await res.json();
+    if (!plans.length){
+      list.innerHTML = '<div class="empty">فعلاً پلنی برای فروش تعریف نشده 🙁</div>';
+      return;
+    }
+    const currency = window.__currency || "تومان";
+    list.innerHTML = plans.map(p => `
+      <div class="plan-card">
+        <div class="plan-info">
+          <b>${p.title}</b>
+          <div class="plan-meta">
+            <span class="badge">📶 ${p.gb} گیگ</span>
+            <span class="badge">⏳ ${p.days} روز</span>
+          </div>
+          <div class="plan-price">${p.price.toLocaleString("fa-IR")} ${currency}</div>
+        </div>
+        <button class="buy-btn" data-plan="${p.id}">🛒 خرید</button>
+      </div>
+    `).join("");
+
+    list.querySelectorAll(".buy-btn").forEach(btn => {
+      btn.addEventListener("click", () => buyPlan(btn.dataset.plan));
+    });
+  }catch(e){
+    list.innerHTML = '<div class="empty">مشکلی تو دریافت پلن‌ها پیش اومد.</div>';
+  }
+}
+
+function buyPlan(planId){
+  if (!tg){ showToast("این دکمه فقط داخل تلگرام کار می‌کنه"); return; }
+  tg.HapticFeedback?.impactOccurred("light");
+  tg.sendData(JSON.stringify({ action: "buy", plan_id: Number(planId) }));
+  tg.close();
+}
+
+document.getElementById("trialBtn").addEventListener("click", () => {
+  if (!tg){ showToast("این دکمه فقط داخل تلگرام کار می‌کنه"); return; }
+  if (window.__usedTrial){ showToast("قبلاً از اکانت تست استفاده کردی"); return; }
+  tg.HapticFeedback?.impactOccurred("light");
+  tg.sendData(JSON.stringify({ action: "trial" }));
+  tg.close();
+});
+
+document.getElementById("refreshBtn").addEventListener("click", () => {
+  loadPlans();
+  loadMe();
+  showToast("بروزرسانی شد");
+});
+
+loadConfig().then(() => { loadPlans(); loadMe(); });
+</script>
+</body>
+</html>
