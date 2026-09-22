@@ -1,15 +1,12 @@
-import secrets
 import time
 
 from aiogram import Bot, F, Router
-from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import database as db
 import keyboards as kb
 import settings
-from handlers.trial import get_trial_limits
 from states import AdminFlow
 
 router = Router(name="admin")
@@ -156,15 +153,28 @@ async def do_broadcast(message: Message, state: FSMContext, bot: Bot):
 # ---------------- panel settings ----------------
 
 @router.callback_query(F.data == "adm:panel")
-async def adm_panel(callback: CallbackQuery, state: FSMContext):
+async def adm_panel(callback: CallbackQuery):
     if not await admin_only(callback.from_user.id):
         return await callback.answer("⛔️", show_alert=True)
     cur_url = await settings.get("PANEL_URL", "-")
     cur_user = await settings.get("PANEL_USERNAME", "-")
+    cur_token = await settings.get("PANEL_API_TOKEN", "")
+    mode = "توکن API" if cur_token else f"یوزر/پسورد ({cur_user})"
+    await callback.message.answer(
+        f"آدرس فعلی: <code>{cur_url}</code>\nروش ورود فعلی: {mode}\n\n"
+        "چطور می‌خوای به پنل وصل بشی؟",
+        reply_markup=kb.panel_auth_kb(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "adm:panel:userpass")
+async def adm_panel_userpass(callback: CallbackQuery, state: FSMContext):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
     await state.set_state(AdminFlow.waiting_panel_info)
     await callback.message.answer(
-        f"مقادیر فعلی:\nآدرس: <code>{cur_url}</code>\nیوزرنیم: <code>{cur_user}</code>\n\n"
-        "مقادیر جدید رو با این فرمت بفرست:\n\n"
+        "مقادیر رو با این فرمت بفرست:\n\n"
         "<code>آدرس پنل|یوزرنیم ادمین|پسورد ادمین|شناسه گروه‌ها(اختیاری با کاما)</code>\n\n"
         "مثال:\n<code>https://panel.example.com|admin|MyPass123|</code>\n\n"
         "برای انصراف /cancel رو بزن."
@@ -182,7 +192,36 @@ async def save_panel(message: Message, state: FSMContext):
         await settings.set("PANEL_USERNAME", username)
         await settings.set("PANEL_PASSWORD", password)
         await settings.set("PANEL_GROUP_IDS", group_ids)
-        await message.answer("✅ تنظیمات پنل ذخیره شد.")
+        await settings.set("PANEL_API_TOKEN", "")  # username/password mode wins now
+        await message.answer("✅ تنظیمات پنل (یوزر/پسورد) ذخیره شد.")
+    except Exception:
+        await message.answer("❌ فرمت اشتباهه. دوباره تلاش کن یا /cancel بزن.")
+        return
+    await state.clear()
+
+
+@router.callback_query(F.data == "adm:panel:token")
+async def adm_panel_token(callback: CallbackQuery, state: FSMContext):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
+    await state.set_state(AdminFlow.waiting_panel_token)
+    await callback.message.answer(
+        "آدرس پنل و توکن API رو با این فرمت بفرست:\n\n"
+        "<code>آدرس پنل|توکن API</code>\n\n"
+        "مثال:\n<code>https://panel.example.com|eyJhbGciOiJIUzI1NiIs...</code>\n\n"
+        "این توکن رو از پنل خودت (بخش تنظیمات ادمین یا Swagger) بگیر.\n"
+        "برای انصراف /cancel رو بزن."
+    )
+    await callback.answer()
+
+
+@router.message(AdminFlow.waiting_panel_token)
+async def save_panel_token(message: Message, state: FSMContext):
+    try:
+        url, token = message.text.split("|", 1)
+        await settings.set("PANEL_URL", url.strip().rstrip("/"))
+        await settings.set("PANEL_API_TOKEN", token.strip())
+        await message.answer("✅ اتصال پنل با توکن API ذخیره شد.")
     except Exception:
         await message.answer("❌ فرمت اشتباهه. دوباره تلاش کن یا /cancel بزن.")
         return
@@ -256,12 +295,15 @@ async def save_payment(message: Message, state: FSMContext):
 async def adm_trial(callback: CallbackQuery, state: FSMContext):
     if not await admin_only(callback.from_user.id):
         return await callback.answer("⛔️", show_alert=True)
-    hours, mb = await get_trial_limits()
+    minutes = await settings.get_int("TRIAL_MINUTES", 60)
+    mb = await settings.get_int("TRIAL_MB", 600)
     await state.set_state(AdminFlow.waiting_trial_info)
     await callback.message.answer(
-        f"مقادیر فعلی: {hours} ساعت / {mb} مگابایت\n\n"
+        f"مقادیر فعلی: {minutes} دقیقه / {mb} مگابایت\n\n"
         "مقادیر جدید رو با این فرمت بفرست:\n\n"
-        "<code>ساعت|مگابایت</code>\n\nمثال (۲ ساعت، ۳۰۰ مگابایت):\n<code>2|300</code>\n\n"
+        "<code>دقیقه|مگابایت</code>\n\n"
+        "مثال (۱ ساعت، ۶۰۰ مگ):\n<code>60|600</code>\n"
+        "مثال (۱ روز، ۲ گیگ):\n<code>1440|2048</code>\n\n"
         "برای انصراف /cancel رو بزن."
     )
     await callback.answer()
@@ -270,12 +312,9 @@ async def adm_trial(callback: CallbackQuery, state: FSMContext):
 @router.message(AdminFlow.waiting_trial_info)
 async def save_trial(message: Message, state: FSMContext):
     try:
-        hours, mb = message.text.split("|")
-        hours, mb = int(hours.strip()), int(mb.strip())
-        if hours <= 0 or mb <= 0:
-            raise ValueError
-        await settings.set("TRIAL_HOURS", str(hours))
-        await settings.set("TRIAL_MB", str(mb))
+        minutes, mb = message.text.split("|")
+        await settings.set("TRIAL_MINUTES", str(int(minutes.strip())))
+        await settings.set("TRIAL_MB", str(int(mb.strip())))
         await message.answer("✅ تنظیمات اکانت تست ذخیره شد.")
     except Exception:
         await message.answer("❌ فرمت اشتباهه. دوباره تلاش کن یا /cancel بزن.")
@@ -362,45 +401,3 @@ async def set_plan_color(callback: CallbackQuery):
     await db.set_plan_color(int(plan_id), color)
     await callback.message.answer("✅ رنگ دکمه‌ی این پلن ذخیره شد." if color else "✅ رنگ پیش‌فرض تم برگشت داده شد.")
     await callback.answer()
-
-
-# ---------------- web admin panel / API token ----------------
-
-async def _get_or_create_api_token() -> str:
-    token = await settings.get("ADMIN_API_TOKEN", "")
-    if not token:
-        token = secrets.token_urlsafe(24)
-        await settings.set("ADMIN_API_TOKEN", token)
-    return token
-
-
-@router.callback_query(F.data == "adm:webpanel")
-async def adm_webpanel(callback: CallbackQuery):
-    if not await admin_only(callback.from_user.id):
-        return await callback.answer("⛔️", show_alert=True)
-    base_url = await settings.get("BASE_URL", "")
-    token = await _get_or_create_api_token()
-    await callback.message.answer(
-        "🌐 پنل مدیریت تحت وب:\n"
-        f"<code>{base_url}/admin</code>\n\n"
-        "🔑 توکن ورود (این رو فقط برای خودت نگه دار):\n"
-        f"<code>{token}</code>\n\n"
-        "این توکن رو در صفحه‌ی ورود پنل وارد کن. برای صادر کردن توکن جدید "
-        "(توکن فعلی و نشست‌های وب باز باطل میشن) دستور /webtoken رو بفرست."
-    )
-    await callback.answer()
-
-
-@router.message(Command("webtoken"))
-async def cmd_new_webtoken(message: Message):
-    if not await admin_only(message.from_user.id):
-        return
-    token = secrets.token_urlsafe(24)
-    await settings.set("ADMIN_API_TOKEN", token)
-    import webadmin
-
-    webadmin.invalidate_all_sessions()
-    await message.answer(
-        f"🔑 توکن جدید پنل وب صادر شد:\n<code>{token}</code>\n\n"
-        "نشست‌های وب قبلی باطل شدن و باید دوباره با این توکن وارد بشی."
-    )
