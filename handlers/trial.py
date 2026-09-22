@@ -19,15 +19,14 @@ async def create_trial(user_id: int) -> dict:
     if await db.has_used_trial(user_id):
         raise TrialError("شما قبلا از اکانت تست رایگان استفاده کردی.")
 
-    trial_days = await settings.get_int("TRIAL_DAYS", 1)
-    trial_gb = await settings.get_int("TRIAL_GB", 1)
+    trial_hours, trial_mb = await get_trial_limits()
 
     try:
         username = f"trial_{user_id}"
         panel_username, sub_link = await panel.create_vpn_user(
             username=username,
-            days=trial_days,
-            gb=trial_gb,
+            days=trial_hours / 24,
+            gb=trial_mb / 1024,
             note=f"trial:{user_id}",
         )
     except Exception as exc:
@@ -37,9 +36,23 @@ async def create_trial(user_id: int) -> dict:
     return {
         "panel_username": panel_username,
         "sub_link": sub_link,
-        "trial_days": trial_days,
-        "trial_gb": trial_gb,
+        "trial_hours": trial_hours,
+        "trial_mb": trial_mb,
     }
+
+
+async def get_trial_limits() -> tuple[int, int]:
+    """Trial size in (hours, megabytes). Falls back to the old day/GB keys
+    so bots configured before this change keep working without re-setup."""
+    hours = await settings.get_int("TRIAL_HOURS", 0)
+    if hours <= 0:
+        old_days = await settings.get_int("TRIAL_DAYS", 0)
+        hours = old_days * 24 if old_days > 0 else 24
+    mb = await settings.get_int("TRIAL_MB", 0)
+    if mb <= 0:
+        old_gb = await settings.get_int("TRIAL_GB", 0)
+        mb = old_gb * 1024 if old_gb > 0 else 500
+    return hours, mb
 
 
 @router.message(F.text == kb.BTN_TRIAL)
@@ -55,5 +68,5 @@ async def get_trial(message: Message):
         "🎁 اکانت تست شما ساخته شد!\n\n"
         f"👤 یوزرنیم: <code>{result['panel_username']}</code>\n"
         f"🔗 لینک اشتراک:\n<code>{result['sub_link']}</code>\n\n"
-        f"⏳ اعتبار: {result['trial_days']} روز | 📶 حجم: {result['trial_gb']} گیگابایت"
+        f"⏳ اعتبار: {result['trial_hours']} ساعت | 📶 حجم: {result['trial_mb']} مگابایت"
     )

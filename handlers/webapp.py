@@ -47,7 +47,8 @@ async def on_web_app_data(message: Message):
         await message.answer(
             "🎁 اکانت تست شما ساخته شد!\n\n"
             f"👤 یوزرنیم: <code>{result['panel_username']}</code>\n"
-            f"🔗 لینک اشتراک:\n<code>{result['sub_link']}</code>"
+            f"🔗 لینک اشتراک:\n<code>{result['sub_link']}</code>\n\n"
+            f"⏳ اعتبار: {result['trial_hours']} ساعت | 📶 حجم: {result['trial_mb']} مگابایت"
         )
 
     else:

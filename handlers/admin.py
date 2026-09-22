@@ -1,12 +1,15 @@
+import secrets
 import time
 
 from aiogram import Bot, F, Router
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
 import database as db
 import keyboards as kb
 import settings
+from handlers.trial import get_trial_limits
 from states import AdminFlow
 
 router = Router(name="admin")
@@ -62,12 +65,15 @@ async def adm_addplan(callback: CallbackQuery, state: FSMContext):
 async def save_plan(message: Message, state: FSMContext):
     try:
         title, gb, days, price = message.text.split("|")
-        await db.add_plan(title.strip(), int(days), int(gb), int(price))
-        await message.answer(f"✅ پلن «{title.strip()}» اضافه شد.")
+        plan_id = await db.add_plan(title.strip(), int(days), int(gb), int(price))
     except Exception:
         await message.answer("❌ فرمت اشتباهه. دوباره تلاش کن یا /cancel بزن.")
         return
     await state.clear()
+    await message.answer(
+        f"✅ پلن «{title.strip()}» اضافه شد.\n\nحالا برای دکمه‌ی خریدش تو مینی‌اپ یه رنگ انتخاب کن:",
+        reply_markup=kb.plan_color_kb(plan_id),
+    )
 
 
 # ---------------- discount codes ----------------
@@ -250,13 +256,13 @@ async def save_payment(message: Message, state: FSMContext):
 async def adm_trial(callback: CallbackQuery, state: FSMContext):
     if not await admin_only(callback.from_user.id):
         return await callback.answer("⛔️", show_alert=True)
-    days = await settings.get_int("TRIAL_DAYS", 1)
-    gb = await settings.get_int("TRIAL_GB", 1)
+    hours, mb = await get_trial_limits()
     await state.set_state(AdminFlow.waiting_trial_info)
     await callback.message.answer(
-        f"مقادیر فعلی: {days} روز / {gb} گیگ\n\n"
+        f"مقادیر فعلی: {hours} ساعت / {mb} مگابایت\n\n"
         "مقادیر جدید رو با این فرمت بفرست:\n\n"
-        "<code>روز|گیگابایت</code>\n\nمثال:\n<code>1|2</code>\n\nبرای انصراف /cancel رو بزن."
+        "<code>ساعت|مگابایت</code>\n\nمثال (۲ ساعت، ۳۰۰ مگابایت):\n<code>2|300</code>\n\n"
+        "برای انصراف /cancel رو بزن."
     )
     await callback.answer()
 
@@ -264,9 +270,12 @@ async def adm_trial(callback: CallbackQuery, state: FSMContext):
 @router.message(AdminFlow.waiting_trial_info)
 async def save_trial(message: Message, state: FSMContext):
     try:
-        days, gb = message.text.split("|")
-        await settings.set("TRIAL_DAYS", str(int(days.strip())))
-        await settings.set("TRIAL_GB", str(int(gb.strip())))
+        hours, mb = message.text.split("|")
+        hours, mb = int(hours.strip()), int(mb.strip())
+        if hours <= 0 or mb <= 0:
+            raise ValueError
+        await settings.set("TRIAL_HOURS", str(hours))
+        await settings.set("TRIAL_MB", str(mb))
         await message.answer("✅ تنظیمات اکانت تست ذخیره شد.")
     except Exception:
         await message.answer("❌ فرمت اشتباهه. دوباره تلاش کن یا /cancel بزن.")
@@ -280,21 +289,21 @@ async def save_trial(message: Message, state: FSMContext):
 async def adm_theme(callback: CallbackQuery):
     if not await admin_only(callback.from_user.id):
         return await callback.answer("⛔️", show_alert=True)
-    current = await settings.get("MINIAPP_ACCENT", "#2f80ed")
+    current = await settings.get("MINIAPP_THEME", "ocean")
     await callback.message.answer(
-        f"رنگ اصلی فعلی مینی‌اپ: <code>{current}</code>\n\nیکی از رنگ‌های زیر رو انتخاب کن:",
-        reply_markup=kb.theme_color_kb(),
+        f"تم فعلی مینی‌اپ: <code>{current}</code>\n\nیکی از تم‌های آماده رو انتخاب کن، یا رنگ دلخواه خودت رو بده:",
+        reply_markup=kb.theme_preset_kb(),
     )
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("theme_color:"))
-async def set_theme_color(callback: CallbackQuery):
+@router.callback_query(F.data.startswith("theme_preset:"))
+async def set_theme_preset(callback: CallbackQuery):
     if not await admin_only(callback.from_user.id):
         return await callback.answer("⛔️", show_alert=True)
-    color = callback.data.split(":")[1]
-    await settings.set("MINIAPP_ACCENT", color)
-    await callback.message.answer(f"✅ رنگ اصلی مینی‌اپ روی <code>{color}</code> تنظیم شد.")
+    theme_key = callback.data.split(":")[1]
+    await settings.set("MINIAPP_THEME", theme_key)
+    await callback.message.answer(f"✅ تم مینی‌اپ روی «{theme_key}» تنظیم شد.")
     await callback.answer()
 
 
@@ -303,7 +312,7 @@ async def ask_custom_color(callback: CallbackQuery, state: FSMContext):
     if not await admin_only(callback.from_user.id):
         return await callback.answer("⛔️", show_alert=True)
     await state.set_state(AdminFlow.waiting_theme_custom_color)
-    await callback.message.answer("کد هگز رنگ رو بفرست، مثلاً: <code>#ff5733</code>")
+    await callback.message.answer("کد هگز رنگ اصلی رو بفرست، مثلاً: <code>#ff5733</code>")
     await callback.answer()
 
 
@@ -313,6 +322,85 @@ async def save_custom_color(message: Message, state: FSMContext):
     if not color.startswith("#") or len(color) not in (4, 7):
         await message.answer("❌ فرمت رنگ درست نیست. مثال درست: #ff5733")
         return
+    await settings.set("MINIAPP_THEME", "custom")
     await settings.set("MINIAPP_ACCENT", color)
-    await message.answer(f"✅ رنگ اصلی مینی‌اپ روی <code>{color}</code> تنظیم شد.")
+    await message.answer(f"✅ تم سفارشی با رنگ <code>{color}</code> تنظیم شد.")
     await state.clear()
+
+
+# ---------------- per-plan button colors ----------------
+
+@router.callback_query(F.data == "adm:plancolors")
+async def adm_plancolors(callback: CallbackQuery):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
+    plans = await db.list_plans()
+    if not plans:
+        await callback.message.answer("هنوز پلنی نساختی.")
+        return await callback.answer()
+    await callback.message.answer(
+        "یه پلن رو انتخاب کن تا رنگ دکمه‌ی خریدش رو عوض کنی:",
+        reply_markup=kb.plans_list_for_color_kb(plans),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("pickplancolor:"))
+async def pick_plan_color(callback: CallbackQuery):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
+    plan_id = int(callback.data.split(":")[1])
+    await callback.message.answer("رنگ دکمه رو انتخاب کن:", reply_markup=kb.plan_color_kb(plan_id))
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("plancolor:"))
+async def set_plan_color(callback: CallbackQuery):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
+    _, plan_id, color = callback.data.split(":")
+    await db.set_plan_color(int(plan_id), color)
+    await callback.message.answer("✅ رنگ دکمه‌ی این پلن ذخیره شد." if color else "✅ رنگ پیش‌فرض تم برگشت داده شد.")
+    await callback.answer()
+
+
+# ---------------- web admin panel / API token ----------------
+
+async def _get_or_create_api_token() -> str:
+    token = await settings.get("ADMIN_API_TOKEN", "")
+    if not token:
+        token = secrets.token_urlsafe(24)
+        await settings.set("ADMIN_API_TOKEN", token)
+    return token
+
+
+@router.callback_query(F.data == "adm:webpanel")
+async def adm_webpanel(callback: CallbackQuery):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
+    base_url = await settings.get("BASE_URL", "")
+    token = await _get_or_create_api_token()
+    await callback.message.answer(
+        "🌐 پنل مدیریت تحت وب:\n"
+        f"<code>{base_url}/admin</code>\n\n"
+        "🔑 توکن ورود (این رو فقط برای خودت نگه دار):\n"
+        f"<code>{token}</code>\n\n"
+        "این توکن رو در صفحه‌ی ورود پنل وارد کن. برای صادر کردن توکن جدید "
+        "(توکن فعلی و نشست‌های وب باز باطل میشن) دستور /webtoken رو بفرست."
+    )
+    await callback.answer()
+
+
+@router.message(Command("webtoken"))
+async def cmd_new_webtoken(message: Message):
+    if not await admin_only(message.from_user.id):
+        return
+    token = secrets.token_urlsafe(24)
+    await settings.set("ADMIN_API_TOKEN", token)
+    import webadmin
+
+    webadmin.invalidate_all_sessions()
+    await message.answer(
+        f"🔑 توکن جدید پنل وب صادر شد:\n<code>{token}</code>\n\n"
+        "نشست‌های وب قبلی باطل شدن و باید دوباره با این توکن وارد بشی."
+    )

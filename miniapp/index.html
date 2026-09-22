@@ -6,129 +6,132 @@
 <title>فروشگاه VPN</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-  :root{
-    --accent: #2f80ed;
-    --bg: #0f1115;
-    --card: #171a21;
-    --card-2: #1d212b;
-    --text: #eef0f4;
-    --muted: #9aa0ac;
-    --border: #262b36;
-    --radius: 18px;
-  }
-  html[data-theme="light"]{
-    --bg: #f4f6fb;
-    --card: #ffffff;
-    --card-2: #f0f3fa;
-    --text: #14161b;
-    --muted: #6b7280;
-    --border: #e6e9f0;
-  }
   *{box-sizing:border-box}
+  html,body{margin:0}
   body{
-    margin:0;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Vazirmatn,Tahoma,sans-serif;
     background:var(--bg);
     color:var(--text);
-    padding-bottom:90px;
-    transition:background .25s ease,color .25s ease;
+    padding-bottom:40px;
+    transition:background .3s ease,color .3s ease;
+    -webkit-tap-highlight-color:transparent;
   }
   .hero{
-    padding:22px 18px 26px;
-    background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #6a3df5));
+    position:relative;
+    overflow:hidden;
+    padding:24px 18px 30px;
+    background:linear-gradient(135deg, var(--accent), var(--accent2));
     color:#fff;
-    border-radius:0 0 28px 28px;
-    box-shadow:0 10px 30px -10px color-mix(in srgb, var(--accent) 60%, transparent);
+    border-radius:0 0 32px 32px;
   }
-  .hero-top{display:flex;align-items:center;justify-content:space-between}
-  .shop-name{font-size:1.15rem;font-weight:800;margin:0}
-  .subtitle{font-size:.8rem;opacity:.85;margin-top:4px}
+  .hero::before, .hero::after{
+    content:"";position:absolute;border-radius:50%;
+    background:rgba(255,255,255,.14);
+  }
+  .hero::before{width:180px;height:180px;top:-90px;left:-60px}
+  .hero::after{width:120px;height:120px;bottom:-70px;right:-30px}
+  .hero-inner{position:relative;z-index:1}
+  .hero-top{display:flex;align-items:flex-start;justify-content:space-between}
+  .shop-name{font-size:1.2rem;font-weight:800;margin:0}
+  .subtitle{font-size:.8rem;opacity:.88;margin-top:4px}
+  .theme-toggle{
+    border:0;background:rgba(255,255,255,.22);color:#fff;
+    width:36px;height:36px;border-radius:50%;font-size:1.05rem;
+    display:flex;align-items:center;justify-content:center;
+  }
   .balance-chip{
-    background:rgba(255,255,255,.18);
-    backdrop-filter:blur(6px);
-    border-radius:14px;
-    padding:10px 14px;
-    margin-top:16px;
+    background:rgba(255,255,255,.16);
+    backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.25);
+    border-radius:16px;
+    padding:12px 16px;
+    margin-top:18px;
     display:flex;
     justify-content:space-between;
     align-items:center;
   }
-  .balance-chip b{font-size:1.15rem}
-  .theme-toggle{
-    border:0;background:rgba(255,255,255,.2);color:#fff;
-    width:34px;height:34px;border-radius:50%;font-size:1rem;
-  }
+  .balance-chip .label{font-size:.78rem;opacity:.9;display:flex;align-items:center;gap:6px}
+  .balance-chip b{font-size:1.2rem}
   .section-title{
     font-size:1rem;font-weight:800;margin:22px 18px 10px;
-    display:flex;align-items:center;gap:6px;
+    display:flex;align-items:center;gap:6px;color:var(--text);
   }
   .quick-actions{display:flex;gap:10px;padding:0 18px}
   .quick-btn{
     flex:1;background:var(--card);border:1px solid var(--border);
     border-radius:16px;padding:14px 10px;text-align:center;font-size:.82rem;
-    color:var(--text);font-weight:600;
+    color:var(--text);font-weight:600;transition:transform .12s ease;
   }
-  .quick-btn span{display:block;font-size:1.4rem;margin-bottom:4px}
+  .quick-btn:active{transform:scale(.96)}
+  .quick-btn span{display:block;font-size:1.5rem;margin-bottom:4px}
   .plans{padding:0 18px;display:flex;flex-direction:column;gap:12px}
   .plan-card{
+    position:relative;
     background:var(--card);
     border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:16px;
+    border-radius:18px;
+    padding:16px 16px 16px 20px;
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:10px;
     opacity:0;
-    transform:translateY(10px);
-    animation:rise .35s ease forwards;
+    transform:translateY(14px);
+    animation:rise .4s cubic-bezier(.2,.8,.2,1) forwards;
+    overflow:hidden;
   }
-  .plan-card + .plan-card{animation-delay:.05s}
+  .plan-card::before{
+    content:"";position:absolute;right:0;top:0;bottom:0;width:5px;
+    background:var(--plan-color, var(--accent));
+  }
   @keyframes rise{to{opacity:1;transform:translateY(0)}}
   .plan-info b{font-size:1rem}
-  .plan-meta{display:flex;gap:8px;margin-top:6px}
+  .plan-meta{display:flex;gap:8px;margin-top:7px;flex-wrap:wrap}
   .badge{
-    font-size:.72rem;background:var(--card-2);color:var(--muted);
-    padding:3px 9px;border-radius:20px;border:1px solid var(--border);
+    font-size:.72rem;background:var(--card2);color:var(--muted);
+    padding:3px 10px;border-radius:20px;border:1px solid var(--border);
   }
-  .plan-price{font-size:.78rem;color:var(--muted);margin-top:8px}
+  .plan-price{font-size:.8rem;color:var(--muted);margin-top:9px;font-weight:600}
   .buy-btn{
-    background:var(--accent);color:#fff;border:0;border-radius:12px;
-    padding:10px 16px;font-weight:700;font-size:.85rem;white-space:nowrap;
+    background:var(--plan-color, var(--accent));color:#fff;border:0;border-radius:13px;
+    padding:11px 18px;font-weight:700;font-size:.85rem;white-space:nowrap;
+    transition:transform .12s ease;
   }
-  .empty{
-    text-align:center;color:var(--muted);padding:40px 20px;font-size:.9rem;
-  }
+  .buy-btn:active{transform:scale(.94)}
+  .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:.9rem}
   .skeleton{
-    height:82px;border-radius:var(--radius);
-    background:linear-gradient(90deg,var(--card) 25%,var(--card-2) 37%,var(--card) 63%);
+    height:88px;border-radius:18px;
+    background:linear-gradient(90deg,var(--card) 25%,var(--card2) 37%,var(--card) 63%);
     background-size:400% 100%;
     animation:shimmer 1.4s ease infinite;
   }
   @keyframes shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
   .toast{
-    position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(6px);
     background:var(--card);border:1px solid var(--border);color:var(--text);
-    padding:10px 18px;border-radius:30px;font-size:.85rem;
-    box-shadow:0 8px 24px rgba(0,0,0,.25);
+    padding:11px 20px;border-radius:30px;font-size:.85rem;
+    box-shadow:0 10px 28px rgba(0,0,0,.28);
     opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease;
+    z-index:10;
   }
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
 
 <div class="hero">
-  <div class="hero-top">
-    <div>
-      <p class="shop-name" id="shopName">فروشگاه VPN</p>
-      <p class="subtitle">سرویس‌های پرسرعت با تحویل آنی</p>
+  <div class="hero-inner">
+    <div class="hero-top">
+      <div>
+        <p class="shop-name" id="shopName">فروشگاه VPN</p>
+        <p class="subtitle">سرویس‌های پرسرعت با تحویل آنی</p>
+      </div>
+      <button class="theme-toggle" id="themeToggle">🌓</button>
     </div>
-    <button class="theme-toggle" id="themeToggle">🌓</button>
-  </div>
-  <div class="balance-chip">
-    <span>💳 موجودی کیف پول</span>
-    <b id="balanceValue">—</b>
+    <div class="balance-chip">
+      <span class="label">💳 موجودی کیف پول</span>
+      <b id="balanceValue">—</b>
+    </div>
   </div>
 </div>
 
@@ -150,24 +153,62 @@
 const tg = window.Telegram?.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 
-function applyTelegramTheme(){
-  if (!tg) return;
-  const root = document.documentElement;
-  const scheme = tg.colorScheme || "dark";
-  root.setAttribute("data-theme", scheme);
-  const tp = tg.themeParams || {};
-  if (tp.bg_color) root.style.setProperty("--bg", tp.bg_color);
-  if (tp.secondary_bg_color) root.style.setProperty("--card", tp.secondary_bg_color);
-  if (tp.text_color) root.style.setProperty("--text", tp.text_color);
-  if (tp.hint_color) root.style.setProperty("--muted", tp.hint_color);
+const THEMES = {
+  ocean: {
+    accent:"#2f80ed", accent2:"#11c5c0",
+    dark:{bg:"#0b1220",card:"#111a2c",card2:"#16213a",text:"#eef2fb",muted:"#8b93a8",border:"#1f2a3d"},
+    light:{bg:"#eef4fd",card:"#ffffff",card2:"#f0f5fc",text:"#0b1220",muted:"#5b6472",border:"#dbe6f5"}
+  },
+  sunset: {
+    accent:"#ff6b6b", accent2:"#ffb86b",
+    dark:{bg:"#1a0f14",card:"#241419",card2:"#2c191f",text:"#fbeee9",muted:"#b89b93",border:"#33201f"},
+    light:{bg:"#fff1ec",card:"#ffffff",card2:"#fdece3",text:"#241419",muted:"#8a6f66",border:"#f3ddd0"}
+  },
+  neon: {
+    accent:"#7c3aed", accent2:"#22d3ee",
+    dark:{bg:"#0a0a0f",card:"#14141f",card2:"#191a29",text:"#eee9fb",muted:"#938fae",border:"#232338"},
+    light:{bg:"#f3efff",card:"#ffffff",card2:"#efeaff",text:"#14141f",muted:"#6f6a8c",border:"#e2d9fb"}
+  },
+  forest: {
+    accent:"#16a34a", accent2:"#84cc16",
+    dark:{bg:"#07130c",card:"#0e1f15",card2:"#12271a",text:"#e9f7ee",muted:"#8fab99",border:"#1a3324"},
+    light:{bg:"#eef8ef",card:"#ffffff",card2:"#e8f5e9",text:"#07130c",muted:"#5c7a65",border:"#d7ecd9"}
+  },
+  mono: {
+    accent:"#1a1a1a", accent2:"#4b4b4b",
+    dark:{bg:"#0f0f10",card:"#19191b",card2:"#212123",text:"#f2f2f3",muted:"#9a9a9d",border:"#28282b"},
+    light:{bg:"#f5f5f5",card:"#ffffff",card2:"#eeeeee",text:"#0f0f10",muted:"#6b6b6e",border:"#e2e2e2"}
+  }
+};
+
+function customTheme(accent){
+  return {
+    accent, accent2: accent,
+    dark:{bg:"#101115",card:"#17181d",card2:"#1e1f26",text:"#eef0f4",muted:"#9aa0ac",border:"#262b36"},
+    light:{bg:"#f4f6fb",card:"#ffffff",card2:"#eef1f8",text:"#14161b",muted:"#6b7280",border:"#e6e9f0"}
+  };
 }
-applyTelegramTheme();
-if (tg) tg.onEvent("themeChanged", applyTelegramTheme);
+
+let currentTheme = THEMES.ocean;
+let currentMode = "dark";
+
+function applyTheme(){
+  const v = currentTheme[currentMode];
+  const root = document.documentElement.style;
+  root.setProperty("--accent", currentTheme.accent);
+  root.setProperty("--accent2", currentTheme.accent2);
+  root.setProperty("--bg", v.bg);
+  root.setProperty("--card", v.card);
+  root.setProperty("--card2", v.card2);
+  root.setProperty("--text", v.text);
+  root.setProperty("--muted", v.muted);
+  root.setProperty("--border", v.border);
+  document.getElementById("themeToggle").textContent = currentMode === "dark" ? "🌞" : "🌙";
+}
 
 document.getElementById("themeToggle").addEventListener("click", () => {
-  const root = document.documentElement;
-  const now = root.getAttribute("data-theme") === "light" ? "dark" : "light";
-  root.setAttribute("data-theme", now);
+  currentMode = currentMode === "dark" ? "light" : "dark";
+  applyTheme();
 });
 
 function showToast(msg){
@@ -181,12 +222,14 @@ async function loadConfig(){
   try{
     const res = await fetch("/api/config");
     const cfg = await res.json();
-    document.documentElement.style.setProperty("--accent", cfg.accent || "#2f80ed");
+    currentTheme = cfg.theme === "custom" ? customTheme(cfg.accent || "#2f80ed") : (THEMES[cfg.theme] || THEMES.ocean);
+    currentMode = (tg && tg.colorScheme) ? tg.colorScheme : "dark";
+    applyTheme();
     document.getElementById("shopName").textContent = cfg.shop_name || "فروشگاه VPN";
     window.__currency = cfg.currency || "تومان";
-    window.__trialDays = cfg.trial_days;
-    window.__trialGb = cfg.trial_gb;
-  }catch(e){}
+  }catch(e){
+    applyTheme();
+  }
 }
 
 async function loadMe(){
@@ -212,12 +255,12 @@ async function loadPlans(){
       return;
     }
     const currency = window.__currency || "تومان";
-    list.innerHTML = plans.map(p => `
-      <div class="plan-card">
+    list.innerHTML = plans.map((p, i) => `
+      <div class="plan-card" style="--plan-color:${p.color || 'var(--accent)'};animation-delay:${i * 0.05}s">
         <div class="plan-info">
           <b>${p.title}</b>
           <div class="plan-meta">
-            <span class="badge">📶 ${p.gb} گیگ</span>
+            <span class="badge">📶 ${p.gb ? p.gb + ' گیگ' : 'نامحدود'}</span>
             <span class="badge">⏳ ${p.days} روز</span>
           </div>
           <div class="plan-price">${p.price.toLocaleString("fa-IR")} ${currency}</div>
