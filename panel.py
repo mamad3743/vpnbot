@@ -47,8 +47,15 @@ async def get_valid_token() -> str:
     return _token
 
 
-async def create_vpn_user(username: str, days: int, gb: int, note: str = "") -> tuple[str, str]:
+async def create_vpn_user(
+    username: str, days: float, gb: float, note: str = ""
+) -> tuple[str, str]:
     """Create a user on the PasarGuard panel.
+
+    `days` and `gb` accept fractional values so callers can express
+    hour/megabyte-level granularity (e.g. days=2/24 for a 2-hour trial,
+    gb=200/1024 for a 200 MB trial) without needing separate hour/MB helpers
+    from the panel SDK.
 
     Returns (panel_username, subscription_url).
     """
@@ -60,7 +67,7 @@ async def create_vpn_user(username: str, days: int, gb: int, note: str = "") -> 
     payload = UserCreate(
         username=username,
         data_limit=Tools.gb(gb) if gb else 0,
-        expire=Tools.days(days),
+        expire=Tools.days(days) if days else None,
         status=UserStatus.ACTIVE,
         group_ids=group_ids_int,
         note=note,

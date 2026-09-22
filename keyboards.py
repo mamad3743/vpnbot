@@ -113,6 +113,7 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     b.row(InlineKeyboardButton(text="💳 تنظیمات پرداخت", callback_data="adm:payment"))
     b.row(InlineKeyboardButton(text="🎁 تنظیمات اکانت تست", callback_data="adm:trial"))
     b.row(InlineKeyboardButton(text="🖌 تم مینی‌اپ", callback_data="adm:theme"))
+    b.row(InlineKeyboardButton(text="🌐 پنل وب و توکن API", callback_data="adm:webpanel"))
     return b.as_markup()
 
 
