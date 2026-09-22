@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS plans (
     days INTEGER NOT NULL,
     gb INTEGER NOT NULL,
     price INTEGER NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1
+    is_active INTEGER NOT NULL DEFAULT 1,
+    color TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS discount_codes (
@@ -78,6 +79,12 @@ async def init_db() -> None:
     _conn.row_factory = aiosqlite.Row
     await _conn.executescript(SCHEMA)
     await _conn.commit()
+    # lightweight migration for DBs created before the `color` column existed
+    try:
+        await _conn.execute("ALTER TABLE plans ADD COLUMN color TEXT DEFAULT ''")
+        await _conn.commit()
+    except Exception:
+        pass
 
 
 def db() -> aiosqlite.Connection:
@@ -141,11 +148,17 @@ async def count_users() -> int:
 
 # ---------------- plans ----------------
 
-async def add_plan(title: str, days: int, gb: int, price: int) -> None:
-    await db().execute(
+async def add_plan(title: str, days: int, gb: int, price: int) -> int:
+    cur = await db().execute(
         "INSERT INTO plans (title, days, gb, price) VALUES (?, ?, ?, ?)",
         (title, days, gb, price),
     )
+    await db().commit()
+    return cur.lastrowid
+
+
+async def set_plan_color(plan_id: int, color: str) -> None:
+    await db().execute("UPDATE plans SET color = ? WHERE id = ?", (color, plan_id))
     await db().commit()
 
 

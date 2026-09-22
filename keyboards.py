@@ -3,14 +3,12 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardMarkup,
-    WebAppInfo,
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder, ReplyKeyboardBuilder
 
 import settings
 
 BTN_BUY = "🛒 خرید سرویس"
-BTN_SHOP = "🛍 فروشگاه شیشه‌ای"
 BTN_TRIAL = "🎁 اکانت تست رایگان"
 BTN_WALLET = "💳 کیف پول من"
 BTN_DISCOUNT = "🎟 کد تخفیف"
@@ -18,14 +16,31 @@ BTN_ORDERS = "📦 سرویس‌های من"
 BTN_SUPPORT = "📞 پشتیبانی"
 BTN_ADMIN = "⚙️ پنل مدیریت"
 
+# Palette used for per-plan button colors (admin picks one per plan) and as
+# quick swatches in the theme submenu.
+PLAN_COLORS = [
+    ("🟢 سبز", "#16a34a"),
+    ("🔵 آبی", "#2f80ed"),
+    ("🔴 قرمز", "#e5484d"),
+    ("🟣 بنفش", "#8e44ec"),
+    ("🟠 نارنجی", "#f2994a"),
+    ("🩵 فیروزه‌ای", "#11c5c0"),
+]
+
+MINIAPP_THEMES = [
+    ("🌊 اقیانوسی", "ocean"),
+    ("🌅 غروب", "sunset"),
+    ("💜 نئون", "neon"),
+    ("🌲 جنگلی", "forest"),
+    ("⚪️ مینیمال", "mono"),
+]
+
 
 async def main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
+    # Mini App is attached via BotFather's Menu Button (next to the message
+    # box), not as a reply-keyboard entry — see README for the /install and
+    # BotFather setup steps.
     b = ReplyKeyboardBuilder()
-    base_url = await settings.get("BASE_URL", "")
-
-    if base_url:
-        b.row(KeyboardButton(text=BTN_SHOP, web_app=WebAppInfo(url=f"{base_url}/miniapp/")))
-
     b.row(KeyboardButton(text=BTN_BUY, style="primary"))
     b.row(
         KeyboardButton(text=BTN_TRIAL, style="success"),
@@ -89,6 +104,7 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.row(InlineKeyboardButton(text="📊 آمار فروش", callback_data="adm:stats"))
     b.row(InlineKeyboardButton(text="➕ افزودن پلن", callback_data="adm:addplan"))
+    b.row(InlineKeyboardButton(text="🎨 رنگ پلن‌ها", callback_data="adm:plancolors"))
     b.row(InlineKeyboardButton(text="🎟 افزودن کد تخفیف", callback_data="adm:addcode"))
     b.row(InlineKeyboardButton(text="📋 لیست کدهای تخفیف", callback_data="adm:listcodes"))
     b.row(InlineKeyboardButton(text="📢 ارسال پیام همگانی", callback_data="adm:broadcast"))
@@ -96,22 +112,34 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     b.row(InlineKeyboardButton(text="🔒 عضویت اجباری", callback_data="adm:forcejoin"))
     b.row(InlineKeyboardButton(text="💳 تنظیمات پرداخت", callback_data="adm:payment"))
     b.row(InlineKeyboardButton(text="🎁 تنظیمات اکانت تست", callback_data="adm:trial"))
-    b.row(InlineKeyboardButton(text="🎨 تم و رنگ مینی‌اپ", callback_data="adm:theme"))
+    b.row(InlineKeyboardButton(text="🖌 تم مینی‌اپ", callback_data="adm:theme"))
     return b.as_markup()
 
 
-def theme_color_kb() -> InlineKeyboardMarkup:
-    colors = [
-        ("🔵 آبی", "#2f80ed"),
-        ("🟣 بنفش", "#8e44ec"),
-        ("🟢 سبز", "#1fb35a"),
-        ("🔴 قرمز", "#e5484d"),
-        ("🟠 نارنجی", "#f2994a"),
-        ("⚫️ مشکی", "#1a1a1a"),
-    ]
+def theme_preset_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    for label, hex_code in colors:
-        b.button(text=label, callback_data=f"theme_color:{hex_code}")
+    for label, key in MINIAPP_THEMES:
+        b.button(text=label, callback_data=f"theme_preset:{key}")
     b.adjust(2)
-    b.row(InlineKeyboardButton(text="🎯 رنگ دلخواه (کد هگز بفرست)", callback_data="theme_color_custom"))
+    b.row(InlineKeyboardButton(text="🎯 رنگ اصلی دلخواه (کد هگز)", callback_data="theme_color_custom"))
+    return b.as_markup()
+
+
+def plan_color_kb(plan_id: int) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    for label, hex_code in PLAN_COLORS:
+        b.button(text=label, callback_data=f"plancolor:{plan_id}:{hex_code}")
+    b.adjust(3)
+    b.row(InlineKeyboardButton(text="↩️ پیش‌فرض (رنگ تم)", callback_data=f"plancolor:{plan_id}:"))
+    return b.as_markup()
+
+
+def plans_list_for_color_kb(plans) -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    for p in plans:
+        dot = "⚪️"
+        for label, hex_code in PLAN_COLORS:
+            if p["color"] == hex_code:
+                dot = label.split(" ")[0]
+        b.row(InlineKeyboardButton(text=f"{dot} {p['title']}", callback_data=f"pickplancolor:{p['id']}"))
     return b.as_markup()

@@ -49,13 +49,15 @@ async def handle_miniapp_index(request: web.Request) -> web.Response:
 
 
 async def handle_api_config(request: web.Request) -> web.Response:
-    accent = await settings.get("MINIAPP_ACCENT", "#2f80ed")
+    theme = await settings.get("MINIAPP_THEME", "ocean")
+    accent = await settings.get("MINIAPP_ACCENT", "#2f80ed")  # only used when theme == "custom"
     currency = await settings.get("CURRENCY", "تومان")
     shop_name = await settings.get("SHOP_NAME", "فروشگاه VPN")
     trial_days = await settings.get_int("TRIAL_DAYS", 1)
     trial_gb = await settings.get_int("TRIAL_GB", 1)
     return web.json_response(
         {
+            "theme": theme,
             "accent": accent,
             "currency": currency,
             "shop_name": shop_name,
@@ -75,6 +77,7 @@ async def handle_api_plans(request: web.Request) -> web.Response:
                 "gb": p["gb"],
                 "days": p["days"],
                 "price": p["price"],
+                "color": p["color"] or "",
             }
             for p in plans
         ]
