@@ -8,7 +8,6 @@ from aiohttp import web
 
 import database as db
 import settings
-from handlers.trial import get_trial_limits
 
 MINIAPP_DIR = Path(__file__).parent / "miniapp"
 
@@ -54,14 +53,15 @@ async def handle_api_config(request: web.Request) -> web.Response:
     accent = await settings.get("MINIAPP_ACCENT", "#2f80ed")  # only used when theme == "custom"
     currency = await settings.get("CURRENCY", "تومان")
     shop_name = await settings.get("SHOP_NAME", "فروشگاه VPN")
-    trial_hours, trial_mb = await get_trial_limits()
+    trial_minutes = await settings.get_int("TRIAL_MINUTES", 60)
+    trial_mb = await settings.get_int("TRIAL_MB", 600)
     return web.json_response(
         {
             "theme": theme,
             "accent": accent,
             "currency": currency,
             "shop_name": shop_name,
-            "trial_hours": trial_hours,
+            "trial_minutes": trial_minutes,
             "trial_mb": trial_mb,
         }
     )

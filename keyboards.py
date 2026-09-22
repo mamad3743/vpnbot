@@ -113,7 +113,6 @@ def admin_menu_kb() -> InlineKeyboardMarkup:
     b.row(InlineKeyboardButton(text="💳 تنظیمات پرداخت", callback_data="adm:payment"))
     b.row(InlineKeyboardButton(text="🎁 تنظیمات اکانت تست", callback_data="adm:trial"))
     b.row(InlineKeyboardButton(text="🖌 تم مینی‌اپ", callback_data="adm:theme"))
-    b.row(InlineKeyboardButton(text="🌐 پنل وب و توکن API", callback_data="adm:webpanel"))
     return b.as_markup()
 
 
@@ -123,6 +122,13 @@ def theme_preset_kb() -> InlineKeyboardMarkup:
         b.button(text=label, callback_data=f"theme_preset:{key}")
     b.adjust(2)
     b.row(InlineKeyboardButton(text="🎯 رنگ اصلی دلخواه (کد هگز)", callback_data="theme_color_custom"))
+    return b.as_markup()
+
+
+def panel_auth_kb() -> InlineKeyboardMarkup:
+    b = InlineKeyboardBuilder()
+    b.row(InlineKeyboardButton(text="🔑 ورود با توکن API", callback_data="adm:panel:token"))
+    b.row(InlineKeyboardButton(text="👤 ورود با یوزر/پسورد", callback_data="adm:panel:userpass"))
     return b.as_markup()
 
 

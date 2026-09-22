@@ -30,7 +30,6 @@ from aiohttp import web
 import database as db
 import miniapp_api
 import settings
-import webadmin
 from middlewares import ForceJoinMiddleware
 from handlers import admin, orders, plans, start, trial, wallet, webapp
 
@@ -40,28 +39,10 @@ log = logging.getLogger("main")
 runtime: dict = {"bot": None, "dp": None}
 
 
-async def on_dispatcher_error(event: ErrorEvent) -> bool:
-    """Catches any exception raised inside a handler so one broken button
-    can't silently swallow the click — logs it and tells the user something
-    went wrong instead of leaving them staring at a button that "does
-    nothing"."""
-    log.exception("Update handling failed: %s", event.exception)
-    update = event.update
-    try:
-        if update.callback_query:
-            await update.callback_query.answer("⚠️ خطایی رخ داد، دوباره تلاش کن.", show_alert=True)
-        elif update.message:
-            await update.message.answer("⚠️ خطایی پیش اومد، دوباره تلاش کن یا /cancel بزن.")
-    except Exception:
-        pass
-    return True
-
-
 def build_dispatcher() -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage())
     dp.message.middleware(ForceJoinMiddleware())
     dp.callback_query.middleware(ForceJoinMiddleware())
-    dp.errors.register(on_dispatcher_error)
 
     # start.router first: its global /cancel handler must win over
     # state-specific handlers registered by later routers.
@@ -72,6 +53,22 @@ def build_dispatcher() -> Dispatcher:
     dp.include_router(wallet.router)
     dp.include_router(orders.router)
     dp.include_router(admin.router)
+
+    @dp.errors()
+    async def on_error(event: ErrorEvent) -> bool:
+        """Catches any exception raised inside a handler so a broken button
+        shows an error instead of silently doing nothing (dead spinner)."""
+        log.exception("Unhandled error while processing update", exc_info=event.exception)
+        update = event.update
+        try:
+            if update.callback_query:
+                await update.callback_query.answer("❌ خطای داخلی. دوباره امتحان کن.", show_alert=True)
+            elif update.message:
+                await update.message.answer("❌ یه خطای داخلی پیش اومد. دوباره امتحان کن یا /cancel بزن.")
+        except Exception:
+            pass
+        return True
+
     return dp
 
 
@@ -192,14 +189,6 @@ async def handle_install_post(request: web.Request) -> web.Response:
     return web.Response(text=INSTALL_SUCCESS, content_type="text/html")
 
 
-async def _process_update(bot: Bot, dp: Dispatcher, data: dict) -> None:
-    try:
-        update = Update.model_validate(data, context={"bot": bot})
-        await dp.feed_update(bot, update)
-    except Exception:
-        log.exception("Failed to process update")
-
-
 async def handle_webhook(request: web.Request) -> web.Response:
     bot = runtime.get("bot")
     dp = runtime.get("dp")
@@ -213,12 +202,8 @@ async def handle_webhook(request: web.Request) -> web.Response:
             return web.Response(status=403)
 
     data = await request.json()
-    # Acknowledge Telegram immediately and process in the background — this
-    # is what actually keeps the bot feeling fast: previously a slow step
-    # (e.g. a broadcast to many users, or a slow panel API call) blocked the
-    # webhook response itself, which can make Telegram think the update
-    # timed out and resend it.
-    asyncio.create_task(_process_update(bot, dp, data))
+    update = Update.model_validate(data, context={"bot": bot})
+    await dp.feed_update(bot, update)
     return web.Response()
 
 
@@ -240,7 +225,6 @@ def create_app() -> web.Application:
     app.router.add_post("/webhook", handle_webhook)
 
     miniapp_api.register_routes(app)
-    webadmin.register_routes(app, runtime)
 
     return app
 

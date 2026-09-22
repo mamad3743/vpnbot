@@ -25,9 +25,9 @@ class ForceJoinMiddleware(BaseMiddleware):
         if user is None:
             return await handler(event, data)
 
-        # Admins are never blocked by force-join — otherwise a channel the
-        # bot lost admin rights in (or a typo'd @username) would lock the
-        # admin out of their own panel along with everyone else.
+        # Admins are never blocked by their own force-join setting — otherwise
+        # a misconfigured channel (bot not admin there, wrong username, ...)
+        # would lock the admin out of their own admin panel.
         if await settings.is_admin(user.id):
             return await handler(event, data)
 

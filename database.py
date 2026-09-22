@@ -181,11 +181,6 @@ async def delete_plan(plan_id: int) -> None:
     await db().commit()
 
 
-async def set_plan_active(plan_id: int, active: bool) -> None:
-    await db().execute("UPDATE plans SET is_active = ? WHERE id = ?", (1 if active else 0, plan_id))
-    await db().commit()
-
-
 # ---------------- discount codes ----------------
 
 async def add_discount_code(
@@ -221,13 +216,6 @@ async def use_discount_code(code: str) -> None:
 async def list_discount_codes() -> list[aiosqlite.Row]:
     cur = await db().execute("SELECT * FROM discount_codes ORDER BY id DESC")
     return await cur.fetchall()
-
-
-async def set_discount_code_active(code_id: int, active: bool) -> None:
-    await db().execute(
-        "UPDATE discount_codes SET is_active = ? WHERE id = ?", (1 if active else 0, code_id)
-    )
-    await db().commit()
 
 
 # ---------------- orders ----------------
@@ -277,11 +265,6 @@ async def user_orders(user_id: int) -> list[aiosqlite.Row]:
     return await cur.fetchall()
 
 
-async def recent_orders(limit: int = 50) -> list[aiosqlite.Row]:
-    cur = await db().execute("SELECT * FROM orders ORDER BY id DESC LIMIT ?", (limit,))
-    return await cur.fetchall()
-
-
 # ---------------- trial ----------------
 
 async def has_used_trial(user_id: int) -> bool:
@@ -318,14 +301,6 @@ async def set_wallet_request_status(request_id: int, status: str) -> None:
         "UPDATE wallet_requests SET status = ? WHERE id = ?", (status, request_id)
     )
     await db().commit()
-
-
-async def list_wallet_requests(status: str = "pending", limit: int = 50) -> list[aiosqlite.Row]:
-    cur = await db().execute(
-        "SELECT * FROM wallet_requests WHERE status = ? ORDER BY id DESC LIMIT ?",
-        (status, limit),
-    )
-    return await cur.fetchall()
 
 
 # ---------------- key/value settings (everything configurable from the bot) ----------------
