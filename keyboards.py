@@ -129,6 +129,7 @@ def panel_auth_kb() -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.row(InlineKeyboardButton(text="🔑 ورود با توکن API", callback_data="adm:panel:token"))
     b.row(InlineKeyboardButton(text="👤 ورود با یوزر/پسورد", callback_data="adm:panel:userpass"))
+    b.row(InlineKeyboardButton(text="🌐 دامنه‌ی لینک اشتراک (اختیاری)", callback_data="adm:panel:subdomain"))
     return b.as_markup()
 
 

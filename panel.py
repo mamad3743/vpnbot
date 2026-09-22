@@ -112,4 +112,29 @@ async def create_vpn_user(
         # No specific group configured -> add the user to every group on the panel
         user = await api.create_user_in_all_groups(payload, token=token)
 
-    return user.username, user.subscription_url
+    sub_link = await _fix_subscription_link(user.subscription_url, base_url=_api_base_url)
+    return user.username, sub_link
+
+
+async def _fix_subscription_link(sub_link: str, base_url: str) -> str:
+    """Some panels return a relative subscription path (e.g. "/sub/user/token/"),
+    and some are configured with a subscription domain different from the
+    admin-API domain. Handle both cases so the link the customer receives
+    always actually opens."""
+    sub_link = (sub_link or "").strip()
+
+    override_domain = await settings.get("PANEL_SUB_DOMAIN", "")
+    if override_domain:
+        override_domain = override_domain.rstrip("/")
+        if sub_link.startswith("http://") or sub_link.startswith("https://"):
+            # keep the path+query, swap only the scheme+host
+            path = sub_link.split("://", 1)[1]
+            path = "/" + path.split("/", 1)[1] if "/" in path else ""
+            return override_domain + path
+        return override_domain + ("/" if not sub_link.startswith("/") else "") + sub_link.lstrip("/")
+
+    if sub_link.startswith("http://") or sub_link.startswith("https://"):
+        return sub_link
+    if sub_link:
+        return base_url.rstrip("/") + "/" + sub_link.lstrip("/")
+    return sub_link

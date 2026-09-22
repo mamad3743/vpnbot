@@ -15,6 +15,7 @@ class AdminFlow(StatesGroup):
     waiting_broadcast = State()
     waiting_panel_info = State()
     waiting_panel_token = State()
+    waiting_panel_subdomain = State()
     waiting_forcejoin_info = State()
     waiting_payment_info = State()
     waiting_trial_info = State()

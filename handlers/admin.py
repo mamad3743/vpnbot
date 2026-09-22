@@ -228,6 +228,35 @@ async def save_panel_token(message: Message, state: FSMContext):
     await state.clear()
 
 
+@router.callback_query(F.data == "adm:panel:subdomain")
+async def adm_panel_subdomain(callback: CallbackQuery, state: FSMContext):
+    if not await admin_only(callback.from_user.id):
+        return await callback.answer("⛔️", show_alert=True)
+    current = await settings.get("PANEL_SUB_DOMAIN", "")
+    await state.set_state(AdminFlow.waiting_panel_subdomain)
+    await callback.message.answer(
+        f"دامنه‌ی فعلی لینک اشتراک: <code>{current or 'تنظیم نشده (از آدرس پنل استفاده میشه)'}</code>\n\n"
+        "اگه لینک ساب کاربرا درست باز نمیشه، معمولاً یعنی دامنه‌ی لینک اشتراک با آدرس پنل فرق داره "
+        "(مثلاً پنل رو با یه دامنه‌ی داخلی مدیریت می‌کنی ولی ساب باید از یه دامنه‌ی دیگه باز بشه).\n\n"
+        "آدرس درست رو بفرست، مثلاً:\n<code>https://sub.example.com</code>\n\n"
+        "برای پاک کردن و برگشت به حالت پیش‌فرض، فقط عدد 0 بفرست.\n"
+        "برای انصراف /cancel رو بزن."
+    )
+    await callback.answer()
+
+
+@router.message(AdminFlow.waiting_panel_subdomain)
+async def save_panel_subdomain(message: Message, state: FSMContext):
+    text = message.text.strip()
+    if text == "0":
+        await settings.set("PANEL_SUB_DOMAIN", "")
+        await message.answer("✅ دامنه‌ی سفارشی لینک اشتراک پاک شد.")
+    else:
+        await settings.set("PANEL_SUB_DOMAIN", text.rstrip("/"))
+        await message.answer(f"✅ لینک‌های اشتراک از این به بعد از <code>{text}</code> ساخته میشن.")
+    await state.clear()
+
+
 # ---------------- force join ----------------
 
 @router.callback_query(F.data == "adm:forcejoin")
